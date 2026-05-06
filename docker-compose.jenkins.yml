@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins-controller
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    environment:
+      JENKINS_OPTS: --httpPort=8080
+      JENKINS_URL: http://localhost:8080/
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
+    networks:
+      - jenkins-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  docker-dind:
+    image: docker:dind
+    container_name: jenkins-docker
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - jenkins_certs:/certs/client
+      - jenkins_docker:/var/lib/docker
+    networks:
+      - jenkins-network
+    restart: unless-stopped
+    command: --storage-driver overlay2
+
+networks:
+  jenkins-network:
+    driver: bridge
+
+volumes:
+  jenkins_home:
+  jenkins_certs:
+  jenkins_docker:
